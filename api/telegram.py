@@ -13,7 +13,7 @@ from generator import generate_file
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 
-MAX_EMAILS = 1_000_000
+MAX_EMAILS = 1_000_000_000
 
 
 # --------------------------------------------------
