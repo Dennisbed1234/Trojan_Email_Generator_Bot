@@ -1,4 +1,3 @@
-# Email Generator Bot
 # Email Generator Telegram Bot
 
 A Telegram bot that generates email
