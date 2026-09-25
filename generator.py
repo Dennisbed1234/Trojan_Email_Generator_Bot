@@ -33,11 +33,11 @@ LAST_NAMES = [
 
 
 DOMAINS = [
-    "mail.invalid",
-    "test.invalid",
-    "demo.invalid",
-    "example.invalid",
-    "mock.invalid",
+    "gmail.com",
+    "yahoomail.com",
+    "aol.com",
+    "hotmail.com",
+    "outlook.com",
 ]
 
 
