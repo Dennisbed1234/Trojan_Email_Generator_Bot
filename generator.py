@@ -30,7 +30,7 @@ LAST_NAMES = [
     "adams", "nelson", "baker", "hall", "rivera",
 ]
 
-# Reserved/non-deliverable domains.
+# Reserved/deliverable domains.
 DOMAINS = [
     "gmail.com",
     "yahoomail.com",
