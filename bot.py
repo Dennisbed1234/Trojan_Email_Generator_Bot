@@ -29,8 +29,8 @@ async def start(
     ensure_user(update.effective_user.id)
 
     await update.message.reply_text(
-        "🤖 Synthetic Email Generator\n\n"
-        "Generate randomized, non-deliverable email-shaped "
+        "🤖 Email Generator\n\n"
+        "Generate randomized, deliverable email-shaped "
         "addresses for testing.\n\n"
         "Commands:\n"
         "/generate 1000\n"
@@ -51,8 +51,8 @@ async def help_command(
         "/generate NUMBER\n\n"
         "Example:\n"
         "/generate 10000\n\n"
-        "The bot generates unique synthetic addresses "
-        "using reserved .invalid domains.\n\n"
+        "The bot generates unique addresses "
+        "using reserved .valid domains.\n\n"
         "Available formats:\n"
         "• TXT\n"
         "• CSV\n"
