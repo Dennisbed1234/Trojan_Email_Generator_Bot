@@ -1,7 +1,5 @@
 import json
 import os
-import random
-import string
 import tempfile
 import urllib.error
 import urllib.request
@@ -18,27 +16,18 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 MAX_EMAILS = 1_000_000
 
 
-def telegram_api(method, data=None, files=None):
-    """
-    Call the Telegram Bot API.
+# --------------------------------------------------
+# Telegram API
+# --------------------------------------------------
 
-    JSON requests are used for normal API calls.
-    Multipart/form-data is used when uploading a generated file.
-    """
-
+def telegram_api(method, data=None, files=None, timeout=30):
     if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN is not configured.")
+        raise RuntimeError("BOT_TOKEN is not configured in Vercel.")
 
-    url = (
-        f"https://api.telegram.org/"
-        f"bot{BOT_TOKEN}/{method}"
-    )
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
 
     if files:
-        boundary = (
-            "----VercelTelegram"
-            + uuid.uuid4().hex
-        )
+        boundary = "----VercelTelegram" + uuid.uuid4().hex
 
         body = build_multipart_body(
             data or {},
@@ -75,8 +64,9 @@ def telegram_api(method, data=None, files=None):
     try:
         with urllib.request.urlopen(
             request,
-            timeout=60,
+            timeout=timeout,
         ) as response:
+
             raw = response.read()
 
         result = json.loads(
@@ -94,6 +84,7 @@ def telegram_api(method, data=None, files=None):
         return result
 
     except urllib.error.HTTPError as error:
+
         details = error.read().decode(
             "utf-8",
             errors="replace",
@@ -103,40 +94,51 @@ def telegram_api(method, data=None, files=None):
             f"Telegram HTTP {error.code}: {details}"
         ) from error
 
+    except urllib.error.URLError as error:
+
+        raise RuntimeError(
+            f"Telegram network error: {error}"
+        ) from error
+
+
+# --------------------------------------------------
+# Multipart upload
+# --------------------------------------------------
 
 def build_multipart_body(
     fields,
     files,
     boundary,
 ):
-    """
-    Build multipart/form-data body manually.
-    """
-
     chunks = []
 
-    boundary_bytes = (
-        boundary.encode("utf-8")
+    boundary_bytes = boundary.encode(
+        "utf-8"
     )
 
     for name, value in fields.items():
 
         chunks.append(
-            b"--"
-            + boundary_bytes
-            + b"\r\n"
+            b"--" +
+            boundary_bytes +
+            b"\r\n"
         )
 
         chunks.append(
             (
                 f'Content-Disposition: '
-                f'form-data; name="{name}"'
+                f'form-data; '
+                f'name="{name}"'
                 f'\r\n\r\n'
             ).encode("utf-8")
         )
 
         if isinstance(value, bool):
-            value = "true" if value else "false"
+            value = (
+                "true"
+                if value
+                else "false"
+            )
 
         elif isinstance(value, (dict, list)):
             value = json.dumps(value)
@@ -154,15 +156,16 @@ def build_multipart_body(
 
         filename = file_info["filename"]
         content = file_info["content"]
+
         content_type = file_info.get(
             "content_type",
             "application/octet-stream",
         )
 
         chunks.append(
-            b"--"
-            + boundary_bytes
-            + b"\r\n"
+            b"--" +
+            boundary_bytes +
+            b"\r\n"
         )
 
         chunks.append(
@@ -178,21 +181,27 @@ def build_multipart_body(
         chunks.append(
             (
                 f"Content-Type: "
-                f"{content_type}\r\n\r\n"
+                f"{content_type}"
+                f"\r\n\r\n"
             ).encode("utf-8")
         )
 
         chunks.append(content)
+
         chunks.append(b"\r\n")
 
     chunks.append(
-        b"--"
-        + boundary_bytes
-        + b"--\r\n"
+        b"--" +
+        boundary_bytes +
+        b"--\r\n"
     )
 
     return b"".join(chunks)
 
+
+# --------------------------------------------------
+# Telegram helpers
+# --------------------------------------------------
 
 def send_message(
     chat_id,
@@ -210,19 +219,32 @@ def send_message(
     return telegram_api(
         "sendMessage",
         data,
+        timeout=20,
     )
 
 
 def answer_callback(
     callback_query_id,
+    text=None,
 ):
+    data = {
+        "callback_query_id":
+            callback_query_id
+    }
+
+    if text:
+        data["text"] = text
+
     return telegram_api(
         "answerCallbackQuery",
-        {
-            "callback_query_id": callback_query_id
-        },
+        data,
+        timeout=10,
     )
 
+
+# --------------------------------------------------
+# File sending
+# --------------------------------------------------
 
 def send_generated_file(
     chat_id,
@@ -230,10 +252,11 @@ def send_generated_file(
     output_format,
     count,
 ):
+
     filename = (
-        f"valid_emails_"
-        f"{count}_{output_format}"
-        f".{output_format}"
+        f"real_emails_"
+        f"{count}_{output_format}."
+        f"{output_format}"
     )
 
     if output_format == "txt":
@@ -264,32 +287,48 @@ def send_generated_file(
                 "content_type": content_type,
             }
         },
+        timeout=120,
     )
 
 
+# --------------------------------------------------
+# Commands
+# --------------------------------------------------
+
 def handle_start(chat_id):
+
     send_message(
         chat_id,
+
         "🤖 Email Generator\n\n"
         "Generate randomized, deliverable "
         "email-shaped addresses.\n\n"
+
         "Commands:\n"
         "/generate 100\n"
         "/help\n\n"
-        f"Maximum per run: {MAX_EMAILS:,}",
+
+        f"Maximum per run: "
+        f"{MAX_EMAILS:,}",
     )
 
 
 def handle_help(chat_id):
+
     send_message(
         chat_id,
+
         "📚 Commands\n\n"
+
         "/generate NUMBER\n\n"
+
         "Example:\n"
         "/generate 1000\n\n"
+
         "The generator creates unique email "
-        "addresses using reserved .gmail domains.\n\n"
-        "Available formats:\n"
+        "addresses using reserved .valid domains.\n\n"
+
+        "Formats:\n"
         "• TXT\n"
         "• CSV\n"
         "• JSON",
@@ -300,38 +339,48 @@ def handle_generate(
     chat_id,
     text,
 ):
+
     parts = text.split()
 
     if len(parts) != 2:
+
         send_message(
             chat_id,
             "Usage:\n\n"
             "/generate 1000",
         )
+
         return
 
     try:
         count = int(parts[1])
+
     except ValueError:
+
         send_message(
             chat_id,
             "❌ Please enter a valid whole number.",
         )
+
         return
 
     if count <= 0:
+
         send_message(
             chat_id,
             "❌ Number must be greater than zero.",
         )
+
         return
 
     if count > MAX_EMAILS:
+
         send_message(
             chat_id,
-            f"❌ Maximum is {MAX_EMAILS:,} "
-            "per generation.",
+            f"❌ Maximum is "
+            f"{MAX_EMAILS:,} per generation.",
         )
+
         return
 
     keyboard = {
@@ -339,21 +388,18 @@ def handle_generate(
             [
                 {
                     "text": "TXT",
-                    "callback_data": (
-                        f"generate:txt:{count}"
-                    ),
+                    "callback_data":
+                        f"generate:txt:{count}",
                 },
                 {
                     "text": "CSV",
-                    "callback_data": (
-                        f"generate:csv:{count}"
-                    ),
+                    "callback_data":
+                        f"generate:csv:{count}",
                 },
                 {
                     "text": "JSON",
-                    "callback_data": (
-                        f"generate:json:{count}"
-                    ),
+                    "callback_data":
+                        f"generate:json:{count}",
                 },
             ]
         ]
@@ -367,7 +413,12 @@ def handle_generate(
     )
 
 
+# --------------------------------------------------
+# Callback processing
+# --------------------------------------------------
+
 def handle_callback(update):
+
     callback = update.get(
         "callback_query"
     )
@@ -377,33 +428,67 @@ def handle_callback(update):
 
     callback_id = callback.get("id")
 
-    answer_callback(callback_id)
-
-    data = callback.get("data", "")
-
     message = callback.get("message")
 
     if not message:
         return
 
-    chat_id = message["chat"]["id"]
+    chat = message.get("chat")
+
+    if not chat:
+        return
+
+    chat_id = chat["id"]
+
+    data = callback.get(
+        "data",
+        "",
+    )
+
+    # ----------------------------------------------
+    # IMPORTANT:
+    # Answer the callback BEFORE doing any work.
+    # This removes Telegram's loading spinner.
+    # ----------------------------------------------
+
+    try:
+
+        answer_callback(
+            callback_id,
+            "Starting generation...",
+        )
+
+    except Exception as error:
+
+        print(
+            "Callback answer error:",
+            repr(error),
+        )
+
+    # ----------------------------------------------
 
     parts = data.split(":")
 
     if len(parts) != 3:
+
         send_message(
             chat_id,
             "❌ Invalid request.",
         )
+
         return
 
-    action, output_format, count_text = parts
+    action = parts[0]
+    output_format = parts[1]
+    count_text = parts[2]
 
     if action != "generate":
+
         send_message(
             chat_id,
             "❌ Invalid request.",
         )
+
         return
 
     if output_format not in {
@@ -411,41 +496,86 @@ def handle_callback(update):
         "csv",
         "json",
     }:
+
         send_message(
             chat_id,
             "❌ Invalid format.",
         )
+
         return
 
     try:
+
         count = int(count_text)
+
     except ValueError:
+
         send_message(
             chat_id,
             "❌ Invalid number.",
         )
+
         return
 
     if count <= 0 or count > MAX_EMAILS:
+
         send_message(
             chat_id,
             "❌ Invalid generation size.",
         )
+
         return
 
-    send_message(
-        chat_id,
-        f"⏳ Generating {count:,} "
-        f"{output_format.upper()} addresses...",
-    )
+    # ----------------------------------------------
+    # Tell user generation has started
+    # ----------------------------------------------
+
+    try:
+
+        send_message(
+            chat_id,
+            (
+                f"⏳ Generating "
+                f"{count:,} "
+                f"{output_format.upper()} "
+                f"addresses..."
+            ),
+        )
+
+    except Exception as error:
+
+        print(
+            "Generation status message error:",
+            repr(error),
+        )
+
+        return
 
     path = None
 
     try:
+
+        print(
+            f"Starting generation: "
+            f"{count} {output_format}"
+        )
+
+        # ------------------------------------------
+        # Generate file
+        # ------------------------------------------
+
         path = generate_file(
             count,
             output_format,
         )
+
+        print(
+            f"File generated: {path}"
+        )
+
+        # ------------------------------------------
+        # Upload to Telegram
+        # ------------------------------------------
 
         send_generated_file(
             chat_id,
@@ -454,10 +584,16 @@ def handle_callback(update):
             count,
         )
 
+        print(
+            "File successfully sent."
+        )
+
         send_message(
             chat_id,
-            f"✅ Finished generating "
-            f"{count:,} addresses.",
+            (
+                f"✅ Finished generating "
+                f"{count:,} addresses."
+            ),
         )
 
     except Exception as error:
@@ -467,33 +603,61 @@ def handle_callback(update):
             repr(error),
         )
 
-        send_message(
-            chat_id,
-            "❌ Generation failed.\n\n"
-            f"{error}",
-        )
+        try:
+
+            send_message(
+                chat_id,
+                (
+                    "❌ Generation failed.\n\n"
+                    f"Error: {error}"
+                ),
+            )
+
+        except Exception as send_error:
+
+            print(
+                "Failed to send error message:",
+                repr(send_error),
+            )
 
     finally:
 
         if path and os.path.exists(path):
-            os.remove(path)
 
+            try:
+
+                os.remove(path)
+
+            except Exception as error:
+
+                print(
+                    "File cleanup error:",
+                    repr(error),
+                )
+
+
+# --------------------------------------------------
+# Update router
+# --------------------------------------------------
 
 def handle_update(update):
-    """
-    Process one Telegram update.
-    """
 
     if "callback_query" in update:
+
         handle_callback(update)
+
         return
 
-    message = update.get("message")
+    message = update.get(
+        "message"
+    )
 
     if not message:
         return
 
-    chat = message.get("chat")
+    chat = message.get(
+        "chat"
+    )
 
     if not chat:
         return
@@ -506,24 +670,42 @@ def handle_update(update):
     ).strip()
 
     if text == "/start":
+
         handle_start(chat_id)
+
         return
 
     if text == "/help":
+
         handle_help(chat_id)
+
         return
 
-    if text.startswith("/generate"):
+    if text.startswith(
+        "/generate"
+    ):
+
         handle_generate(
             chat_id,
             text,
         )
+
         return
 
 
-class handler(BaseHTTPRequestHandler):
+# --------------------------------------------------
+# Vercel HTTP handler
+# --------------------------------------------------
+
+class handler(
+    BaseHTTPRequestHandler
+):
 
     def do_POST(self):
+
+        # ------------------------------------------
+        # Verify Telegram webhook secret
+        # ------------------------------------------
 
         if WEBHOOK_SECRET:
 
@@ -567,6 +749,10 @@ class handler(BaseHTTPRequestHandler):
                 body.decode("utf-8")
             )
 
+            print(
+                "Telegram update received."
+            )
+
             handle_update(update)
 
             self.send_response(200)
@@ -589,18 +775,23 @@ class handler(BaseHTTPRequestHandler):
                 repr(error),
             )
 
-            self.send_response(500)
+            try:
 
-            self.send_header(
-                "Content-Type",
-                "application/json",
-            )
+                self.send_response(500)
 
-            self.end_headers()
+                self.send_header(
+                    "Content-Type",
+                    "application/json",
+                )
 
-            self.wfile.write(
-                b'{"ok":false}'
-            )
+                self.end_headers()
+
+                self.wfile.write(
+                    b'{"ok":false}'
+                )
+
+            except Exception:
+                pass
 
     def do_GET(self):
 
