@@ -180,7 +180,7 @@ async def generate_callback(
         )
 
         await query.message.reply_text(
-            f"✅ Generated {count:,} unique synthetic addresses."
+            f"✅ Generated {count:,} unique addresses."
         )
 
         with open(path, "rb") as file:
@@ -244,7 +244,7 @@ def main():
     application.add_error_handler(error_handler)
 
     print(
-        "🤖 Synthetic Email Generator Bot is running..."
+        "🤖 Trojan Email Generator Bot is running..."
     )
 
     application.run_polling()
