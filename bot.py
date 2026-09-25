@@ -1,7 +1,5 @@
-cat > bot.py <<'EOF'
 import asyncio
 import os
-import re
 
 from telegram import (
     Update,
@@ -25,12 +23,15 @@ async def start(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    if not update.effective_user or not update.message:
+        return
+
     ensure_user(update.effective_user.id)
 
     await update.message.reply_text(
-        "🤖 Email Generator\n\n"
-        "Generate randomized, deliverable email-shaped "
-        "addresses.\n\n"
+        "🤖 Synthetic Email Generator\n\n"
+        "Generate randomized, non-deliverable email-shaped "
+        "addresses for testing.\n\n"
         "Commands:\n"
         "/generate 1000\n"
         "/help\n\n"
@@ -42,13 +43,16 @@ async def help_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    if not update.message:
+        return
+
     await update.message.reply_text(
         "📚 Commands\n\n"
         "/generate NUMBER\n\n"
         "Example:\n"
         "/generate 10000\n\n"
-        "The bot generates unique addresses "
-        "using deliverable .valid domains.\n\n"
+        "The bot generates unique synthetic addresses "
+        "using reserved .invalid domains.\n\n"
         "Available formats:\n"
         "• TXT\n"
         "• CSV\n"
@@ -60,6 +64,9 @@ async def generate_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+    if not update.effective_user or not update.message:
+        return
+
     ensure_user(update.effective_user.id)
 
     if not context.args:
@@ -107,7 +114,7 @@ async def generate_command(
     ]
 
     await update.message.reply_text(
-        f"Generate {count:,} addresses as:",
+        f"Generate {count:,} synthetic addresses as:",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
@@ -117,6 +124,9 @@ async def generate_callback(
     context: ContextTypes.DEFAULT_TYPE,
 ):
     query = update.callback_query
+
+    if not query or not query.message:
+        return
 
     await query.answer()
 
@@ -129,6 +139,12 @@ async def generate_callback(
         return
 
     _, output_format, count_string = parts
+
+    if output_format not in {"txt", "csv", "json"}:
+        await query.edit_message_text(
+            "❌ Invalid format."
+        )
+        return
 
     try:
         count = int(count_string)
@@ -164,7 +180,7 @@ async def generate_callback(
         )
 
         await query.message.reply_text(
-            f"✅ Generated {count:,} unique addresses."
+            f"✅ Generated {count:,} unique synthetic addresses."
         )
 
         with open(path, "rb") as file:
@@ -178,6 +194,8 @@ async def generate_callback(
             )
 
     except Exception as error:
+        print(f"Generation error: {error}")
+
         await query.message.reply_text(
             "❌ Generation failed.\n\n"
             f"{error}"
@@ -192,10 +210,7 @@ async def error_handler(
     update: object,
     context: ContextTypes.DEFAULT_TYPE,
 ):
-    print(
-        "Telegram error:",
-        context.error,
-    )
+    print("Telegram error:", context.error)
 
 
 def main():
@@ -229,7 +244,7 @@ def main():
     application.add_error_handler(error_handler)
 
     print(
-        "🤖 Email Generator Bot is running..."
+        "🤖 Synthetic Email Generator Bot is running..."
     )
 
     application.run_polling()
@@ -237,4 +252,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF
