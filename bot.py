@@ -1,3 +1,4 @@
+cat > bot.py <<'EOF'
 import asyncio
 import os
 import re
@@ -15,123 +16,43 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from config import (
-    BOT_TOKEN,
-    MAX_EMAILS,
-    DEFAULT_DOMAIN,
-)
-
-from database import (
-    init_db,
-    ensure_user,
-    get_domain,
-    set_domain,
-)
-
+from config import BOT_TOKEN, MAX_EMAILS
+from database import init_db, ensure_user
 from generator import generate_file
 
 
-def valid_domain(domain: str) -> bool:
-    """
-    Only permit domains suitable for data.
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    ensure_user(update.effective_user.id)
 
-    This bot intentionally restricts generation to .test,
-    which is reserved for documentation/testing.
-    """
-
-    domain = domain.lower().strip()
-
-    pattern = r"^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.test$"
-
-    return bool(re.match(pattern, domain))
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-
-    ensure_user(user_id)
-
-    text = (
+    await update.message.reply_text(
         "🤖 Email Generator\n\n"
-        "This bot creates"
-        "email addresses.\n\n"
+        "Generate randomized, deliverable email-shaped "
+        "addresses.\n\n"
         "Commands:\n"
-        "/generate 1000 - Generate emails\n"
-        "/domain - Show current domain\n"
-        "/setdomain example.test - Change test domain\n"
-        "/help - Show help\n\n"
-        "Maximum per generation: "
-        f"{MAX_EMAILS:,}"
+        "/generate 1000\n"
+        "/help\n\n"
+        f"Maximum per run: {MAX_EMAILS:,}"
     )
-
-    await update.message.reply_text(text)
 
 
 async def help_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
-    text = (
+    await update.message.reply_text(
         "📚 Commands\n\n"
-        "/generate NUMBER\n"
+        "/generate NUMBER\n\n"
         "Example:\n"
         "/generate 10000\n\n"
-        "/domain\n"
-        "Show the current domain.\n\n"
-        "/setdomain example.test\n"
-        "Change the domain.\n\n"
-        "Supported output formats are TXT, CSV and JSON."
-    )
-
-    await update.message.reply_text(text)
-
-
-async def domain_command(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-):
-    user_id = update.effective_user.id
-
-    ensure_user(user_id)
-
-    domain = get_domain(user_id)
-
-    await update.message.reply_text(
-        f"Current domain:\n\n`{domain}`",
-        parse_mode="Markdown",
-    )
-
-
-async def set_domain_command(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-):
-    user_id = update.effective_user.id
-
-    ensure_user(user_id)
-
-    if not context.args:
-        await update.message.reply_text(
-            "Usage:\n/setdomain example.test"
-        )
-        return
-
-    domain = context.args[0].lower().strip()
-
-    if not valid_domain(domain):
-        await update.message.reply_text(
-            "❌ Invalid domain.\n\n"
-            "For safety, this bot only supports domains "
-            "ending in `.test`.\n\n"
-            "Example:\n"
-            "/setdomain example.test"
-        )
-        return
-
-    set_domain(user_id, domain)
-
-    await update.message.reply_text(
-        f"✅ domain changed to:\n\n{domain}"
+        "The bot generates unique addresses "
+        "using deliverable .valid domains.\n\n"
+        "Available formats:\n"
+        "• TXT\n"
+        "• CSV\n"
+        "• JSON"
     )
 
 
@@ -139,13 +60,12 @@ async def generate_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
-    user_id = update.effective_user.id
-
-    ensure_user(user_id)
+    ensure_user(update.effective_user.id)
 
     if not context.args:
         await update.message.reply_text(
-            "Usage:\n\n/generate 10000"
+            "Usage:\n\n"
+            "/generate 1000"
         )
         return
 
@@ -153,8 +73,7 @@ async def generate_command(
         count = int(context.args[0])
     except ValueError:
         await update.message.reply_text(
-            "❌ Please enter a whole number.\n\n"
-            "Example:\n/generate 10000"
+            "❌ Please enter a valid whole number."
         )
         return
 
@@ -166,7 +85,7 @@ async def generate_command(
 
     if count > MAX_EMAILS:
         await update.message.reply_text(
-            f"❌ Maximum is {MAX_EMAILS:,} emails per job."
+            f"❌ Maximum is {MAX_EMAILS:,} per run."
         )
         return
 
@@ -188,7 +107,7 @@ async def generate_command(
     ]
 
     await update.message.reply_text(
-        f"Generate {count:,} emails as:",
+        f"Generate {count:,} addresses as:",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
@@ -205,7 +124,7 @@ async def generate_callback(
 
     if len(parts) != 3:
         await query.edit_message_text(
-            "❌ Invalid generation request."
+            "❌ Invalid request."
         )
         return
 
@@ -225,15 +144,8 @@ async def generate_callback(
         )
         return
 
-    user_id = query.from_user.id
-
-    ensure_user(user_id)
-
-    domain = get_domain(user_id)
-
     await query.edit_message_text(
-        f"⏳ Generating {count:,} emails...\n\n"
-        f"Domain: {domain}\n"
+        f"⏳ Generating {count:,} addresses...\n\n"
         f"Format: {output_format.upper()}"
     )
 
@@ -242,35 +154,38 @@ async def generate_callback(
         action=ChatAction.UPLOAD_DOCUMENT,
     )
 
+    path = None
+
     try:
         path = await asyncio.to_thread(
             generate_file,
             count,
             output_format,
-            domain,
         )
 
-        caption = (
-            "✅ Generation complete\n\n"
-            f"Emails: {count:,}\n"
-            f"Domain: {domain}\n"
-            f"Format: {output_format.upper()}"
+        await query.message.reply_text(
+            f"✅ Generated {count:,} unique addresses."
         )
 
         with open(path, "rb") as file:
             await context.bot.send_document(
                 chat_id=query.message.chat_id,
                 document=file,
-                caption=caption,
+                caption=(
+                    f"📄 {output_format.upper()} dataset\n"
+                    f"Records: {count:,}"
+                ),
             )
-
-        os.remove(path)
 
     except Exception as error:
         await query.message.reply_text(
             "❌ Generation failed.\n\n"
-            f"Error: {error}"
+            f"{error}"
         )
+
+    finally:
+        if path and os.path.exists(path):
+            os.remove(path)
 
 
 async def error_handler(
@@ -305,14 +220,6 @@ def main():
     )
 
     application.add_handler(
-        CommandHandler("domain", domain_command)
-    )
-
-    application.add_handler(
-        CommandHandler("setdomain", set_domain_command)
-    )
-
-    application.add_handler(
         CallbackQueryHandler(
             generate_callback,
             pattern=r"^generate:(txt|csv|json):\d+$",
@@ -321,10 +228,13 @@ def main():
 
     application.add_error_handler(error_handler)
 
-    print("🤖 Email Generator Bot is running...")
+    print(
+        "🤖 Email Generator Bot is running..."
+    )
 
     application.run_polling()
 
 
 if __name__ == "__main__":
     main()
+EOF
