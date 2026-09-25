@@ -114,7 +114,7 @@ async def generate_command(
     ]
 
     await update.message.reply_text(
-        f"Generate {count:,} synthetic addresses as:",
+        f"Generate {count:,} email addresses as:",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
