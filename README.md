@@ -1,4 +1,4 @@
-# Email Generator Telegram Bot
+# Trojan Email Generator Telegram Bot
 
 A Telegram bot that generates email
 addresses for software testing and dataset generation.
