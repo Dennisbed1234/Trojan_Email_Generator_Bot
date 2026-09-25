@@ -1,3 +1,4 @@
+cat > config.py <<'EOF'
 import os
 from dotenv import load_dotenv
 
@@ -11,3 +12,4 @@ if not BOT_TOKEN:
     )
 
 MAX_EMAILS = 1_000_000
+EOF
