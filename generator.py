@@ -4,7 +4,7 @@ import os
 import random
 import re
 import tempfile
-from itertools import cycle
+
 
 FIRST_NAMES = [
     "amelia", "olivia", "emma", "ava", "sophia",
@@ -18,6 +18,7 @@ FIRST_NAMES = [
     "logan", "owen", "samuel", "jacob", "asher",
 ]
 
+
 LAST_NAMES = [
     "smith", "johnson", "williams", "brown", "jones",
     "garcia", "miller", "davis", "rodriguez", "martinez",
@@ -30,50 +31,67 @@ LAST_NAMES = [
     "adams", "nelson", "baker", "hall", "rivera",
 ]
 
-# Reserved/deliverable domains.
+
 DOMAINS = [
-    "gmail.com",
-    "yahoomail.com",
-    "hotmail.com",
-    "outlook.com",
-    "aol.com",
+    "mail.invalid",
+    "test.invalid",
+    "demo.invalid",
+    "example.invalid",
+    "mock.invalid",
 ]
 
 
-def random_case(text: str) -> str:
-    """
-    Randomly changes capitalization while keeping the
-    underlying name recognizable.
-    """
-
+def random_case(text):
     styles = [
-        lambda x: x.lower(),
-        lambda x: x.upper(),
-        lambda x: x.capitalize(),
-        lambda x: "".join(
-            char.upper() if random.choice([True, False]) else char.lower()
-            for char in x
+        str.lower,
+        str.upper,
+        str.capitalize,
+        lambda value: "".join(
+            char.upper()
+            if random.choice([True, False])
+            else char.lower()
+            for char in value
         ),
     ]
 
     return random.choice(styles)(text)
 
 
-def random_digits(min_length=2, max_length=7) -> str:
-    length = random.randint(min_length, max_length)
-    return "".join(random.choice("0123456789") for _ in range(length))
-
-
-def random_letters(min_length=1, max_length=4) -> str:
-    length = random.randint(min_length, max_length)
+def random_digits(
+    min_length=2,
+    max_length=7,
+):
+    length = random.randint(
+        min_length,
+        max_length,
+    )
 
     return "".join(
-        random.choice("abcdefghijklmnopqrstuvwxyz")
+        random.choice(
+            "0123456789"
+        )
         for _ in range(length)
     )
 
 
-def sanitize(value: str) -> str:
+def random_letters(
+    min_length=1,
+    max_length=4,
+):
+    length = random.randint(
+        min_length,
+        max_length,
+    )
+
+    return "".join(
+        random.choice(
+            "abcdefghijklmnopqrstuvwxyz"
+        )
+        for _ in range(length)
+    )
+
+
+def sanitize(value):
     return re.sub(
         r"[^a-zA-Z0-9]",
         "",
@@ -81,13 +99,22 @@ def sanitize(value: str) -> str:
     )
 
 
-def create_local_part() -> str:
+def create_local_part():
+
     first = sanitize(
-        random_case(random.choice(FIRST_NAMES))
+        random_case(
+            random.choice(
+                FIRST_NAMES
+            )
+        )
     )
 
     last = sanitize(
-        random_case(random.choice(LAST_NAMES))
+        random_case(
+            random.choice(
+                LAST_NAMES
+            )
+        )
     )
 
     number = random_digits()
@@ -95,43 +122,108 @@ def create_local_part() -> str:
     extra_letters = random_letters()
 
     separator = random.choice(
-        [".", "_", "-", ""]
+        [
+            ".",
+            "_",
+            "-",
+            "",
+        ]
     )
 
-    pattern = random.randint(1, 12)
+    pattern = random.randint(
+        1,
+        12,
+    )
 
     if pattern == 1:
-        local = f"{first}{separator}{last}"
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+        )
 
     elif pattern == 2:
-        local = f"{first}{separator}{last}{number}"
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{number}"
+        )
 
     elif pattern == 3:
-        local = f"{first}{number}{separator}{last}"
+        local = (
+            f"{first}"
+            f"{number}"
+            f"{separator}"
+            f"{last}"
+        )
 
     elif pattern == 4:
-        local = f"{first}{separator}{number}{last}"
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{number}"
+            f"{last}"
+        )
 
     elif pattern == 5:
-        local = f"{first}{extra_letters}{separator}{last}"
+        local = (
+            f"{first}"
+            f"{extra_letters}"
+            f"{separator}"
+            f"{last}"
+        )
 
     elif pattern == 6:
-        local = f"{first}{separator}{last}{extra_letters}"
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{extra_letters}"
+        )
 
     elif pattern == 7:
-        local = f"{extra_letters}{separator}{first}{last}{number}"
+        local = (
+            f"{extra_letters}"
+            f"{separator}"
+            f"{first}"
+            f"{last}"
+            f"{number}"
+        )
 
     elif pattern == 8:
-        local = f"{first}{number}{extra_letters}"
+        local = (
+            f"{first}"
+            f"{number}"
+            f"{extra_letters}"
+        )
 
     elif pattern == 9:
-        local = f"{first}{separator}{last}{number}{extra_letters}"
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{number}"
+            f"{extra_letters}"
+        )
 
     elif pattern == 10:
-        local = f"{first}{number}{separator}{last}{extra_letters}"
+        local = (
+            f"{first}"
+            f"{number}"
+            f"{separator}"
+            f"{last}"
+            f"{extra_letters}"
+        )
 
     elif pattern == 11:
-        local = f"{extra_letters}{first}{separator}{last}{number}"
+        local = (
+            f"{extra_letters}"
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{number}"
+        )
 
     else:
         local = (
@@ -141,10 +233,10 @@ def create_local_part() -> str:
             f"{random_digits(1, 10)}"
         )
 
-    # Email local parts cannot begin/end with a separator.
-    local = local.strip("._-")
+    local = local.strip(
+        "._-"
+    )
 
-    # Collapse accidental repeated separators.
     local = re.sub(
         r"[._-]{2,}",
         lambda match: match.group(0)[0],
@@ -154,24 +246,19 @@ def create_local_part() -> str:
     return local
 
 
-def create_email() -> str:
-    local_part = create_local_part()
+def create_email():
+    return (
+        f"{create_local_part()}"
+        f"@{random.choice(DOMAINS)}"
+    )
 
-    domain = random.choice(DOMAINS)
 
-    return f"{local_part}@{domain}"
-
-
-def generate_emails(count: int):
-    """
-    Generates unique email-shaped addresses.
-
-    A set is used only for uniqueness tracking.
-    """
+def generate_emails(count):
 
     seen = set()
 
     while len(seen) < count:
+
         email = create_email()
 
         if email in seen:
@@ -183,17 +270,18 @@ def generate_emails(count: int):
 
 
 def generate_file(
-    count: int,
-    output_format: str,
+    count,
+    output_format,
 ):
-    """
-    Streams generated addresses into a temporary file.
 
-    Supported:
-        txt
-        csv
-        json
-    """
+    if output_format not in {
+        "txt",
+        "csv",
+        "json",
+    }:
+        raise ValueError(
+            "Unsupported output format."
+        )
 
     suffix = {
         "txt": ".txt",
@@ -202,7 +290,7 @@ def generate_file(
     }[output_format]
 
     fd, path = tempfile.mkstemp(
-        prefix="leads_emails_",
+        prefix="valid_emails_",
         suffix=suffix,
     )
 
@@ -216,7 +304,9 @@ def generate_file(
             encoding="utf-8",
         ) as file:
 
-            for email in generate_emails(count):
+            for email in generate_emails(
+                count
+            ):
                 file.write(email)
                 file.write("\n")
 
@@ -235,8 +325,12 @@ def generate_file(
                 ["email"]
             )
 
-            for email in generate_emails(count):
-                writer.writerow([email])
+            for email in generate_emails(
+                count
+            ):
+                writer.writerow(
+                    [email]
+                )
 
     elif output_format == "json":
 
@@ -250,7 +344,9 @@ def generate_file(
 
             first = True
 
-            for email in generate_emails(count):
+            for email in generate_emails(
+                count
+            ):
 
                 if not first:
                     file.write(",\n")
