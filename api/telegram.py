@@ -13,6 +13,7 @@ from database import (
     create_order,
     get_order,
     get_latest_pending_order,
+    get_latest_payment_order,
     attach_tx_hash,
     approve_order,
     reject_order,
@@ -36,15 +37,28 @@ from payment import (
 )
 
 
-BOT_TOKEN = os.environ.get(
-    "BOT_TOKEN"
-)
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 WEBHOOK_SECRET = os.environ.get(
     "WEBHOOK_SECRET"
 )
 
 MAX_EMAILS = 1_000_000_000
+
+
+# --------------------------------------------------
+# ADMINS
+# --------------------------------------------------
+
+def get_admin_ids():
+    return {
+        int(value.strip())
+        for value in os.environ.get(
+            "ADMIN_USER_IDS",
+            ""
+        ).split(",")
+        if value.strip().isdigit()
+    }
 
 
 # --------------------------------------------------
@@ -343,9 +357,7 @@ def send_generated_file(
 
     else:
 
-        content_type = (
-            "application/json"
-        )
+        content_type = "application/json"
 
     with open(
         path,
@@ -617,10 +629,6 @@ def create_payment_order(
         payment_address=address,
     )
 
-    order = get_order(
-        order_id
-    )
-
     keyboard = {
         "inline_keyboard": [
             [
@@ -646,7 +654,7 @@ def create_payment_order(
         chat_id,
 
         build_payment_message(
-            order
+            order_id
         ),
 
         keyboard,
@@ -654,7 +662,7 @@ def create_payment_order(
 
 
 # --------------------------------------------------
-# TX HASH PROMPT
+# I'VE PAID
 # --------------------------------------------------
 
 def handle_paid(
@@ -734,8 +742,6 @@ def handle_paid(
 def notify_admins(
     order,
 ):
-    from payment import get_admin_ids
-
     admins = get_admin_ids()
 
     if not admins:
@@ -753,15 +759,21 @@ def notify_admins(
         f"Amount: ${order['price_usd']:,.2f}\n"
         f"Network: {get_crypto_label(order['crypto'])}\n\n"
 
-        f"TX Hash:\n"
+        "TX Hash:\n"
         f"<code>{order['tx_hash']}</code>\n\n"
 
-        f"Payment address:\n"
+        "Payment address:\n"
         f"<code>{order['payment_address']}</code>"
     )
 
-    token = make_callback_token(
-        order["order_id"]
+    approve_token = make_callback_token(
+        "approve",
+        order["order_id"],
+    )
+
+    reject_token = make_callback_token(
+        "reject",
+        order["order_id"],
     )
 
     keyboard = {
@@ -774,7 +786,7 @@ def notify_admins(
                         (
                             f"approve:"
                             f"{order['order_id']}:"
-                            f"{token}"
+                            f"{approve_token}"
                         ),
                 },
                 {
@@ -784,7 +796,7 @@ def notify_admins(
                         (
                             f"reject:"
                             f"{order['order_id']}:"
-                            f"{token}"
+                            f"{reject_token}"
                         ),
                 },
             ]
@@ -955,12 +967,6 @@ def handle_generate(
     # NORMAL USER
     # ----------------------------------------------
 
-    # Find an approved payment for this user
-    # matching the requested quantity.
-    from database import get_order
-
-    from database import get_latest_payment_order
-
     latest = get_latest_payment_order(
         user_id
     )
@@ -1129,7 +1135,7 @@ def show_generation_formats(
 
 
 # --------------------------------------------------
-# GENERATION
+# PAID GENERATION
 # --------------------------------------------------
 
 def perform_generation(
@@ -1319,6 +1325,7 @@ def perform_admin_generation(
     path = None
 
     try:
+
         print(
             f"ADMIN generation started: "
             f"{count} {output_format}"
@@ -1357,6 +1364,7 @@ def perform_admin_generation(
         )
 
         try:
+
             send_message(
                 chat_id,
                 (
@@ -1377,6 +1385,7 @@ def perform_admin_generation(
         if path and os.path.exists(path):
 
             try:
+
                 os.remove(path)
 
             except Exception as error:
@@ -1617,6 +1626,7 @@ def handle_callback(
         token = parts[2]
 
         if not verify_callback_token(
+            "approve",
             order_id,
             token,
         ):
@@ -1720,6 +1730,7 @@ def handle_callback(
         token = parts[2]
 
         if not verify_callback_token(
+            "reject",
             order_id,
             token,
         ):
@@ -1847,7 +1858,7 @@ def handle_callback(
 
     if action == "admin_generate":
 
-        if len(parts) != 2:
+        if len(parts) != 3:
 
             send_message(
                 chat_id,
@@ -1880,26 +1891,42 @@ def handle_callback(
 
             return
 
+        output_format = parts[2].lower()
+
         if count <= 0 or count > MAX_EMAILS:
 
             send_message(
                 chat_id,
-                "❌ Invalid generation size.",
+                f"❌ Generation must be between "
+                f"1 and {MAX_EMAILS:,}.",
             )
 
             return
 
-        # admin_generate:<count>:<format>
+        if output_format not in {
+            "txt",
+            "csv",
+            "json",
+        }:
 
-        send_message(
+            send_message(
+                chat_id,
+                "❌ Invalid format.",
+            )
+
+            return
+
+        perform_admin_generation(
             chat_id,
-            "❌ Please select a format again.",
+            user_id,
+            count,
+            output_format,
         )
 
         return
 
     # ----------------------------------------------
-    # ADMIN GENERATION FORMAT
+    # UNKNOWN CALLBACK
     # ----------------------------------------------
 
     send_message(
@@ -2024,10 +2051,6 @@ class handler(
     def do_POST(
         self
     ):
-        # ------------------------------------------
-        # Verify Telegram webhook secret
-        # ------------------------------------------
-
         if WEBHOOK_SECRET:
 
             received_secret = (
