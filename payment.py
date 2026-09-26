@@ -71,12 +71,20 @@ PAYMENT_ADDRESSES = {
 }
 
 
-CRYPTO_NAMES = {
+# ============================================================
+# CRYPTO LABELS
+# ============================================================
+
+CRYPTO_LABELS = {
     "USDT_TRC20": "USDT TRC-20",
     "USDT_ERC20": "USDT ERC-20",
     "USDT_BEP20": "USDT BEP-20",
     "BTC": "BTC",
 }
+
+
+# Backwards-compatible name
+CRYPTO_NAMES = CRYPTO_LABELS
 
 
 # ============================================================
@@ -99,6 +107,13 @@ def create_order_id():
     return secrets.token_hex(6).upper()
 
 
+def get_crypto_label(crypto):
+    return CRYPTO_LABELS.get(
+        crypto,
+        crypto,
+    )
+
+
 def validate_tx_hash(tx_hash):
     if not tx_hash:
         return False
@@ -115,10 +130,15 @@ def validate_tx_hash(tx_hash):
 
 
 # ============================================================
-# CALLBACK SIGNING
+# CALLBACK TOKEN SIGNING
 # ============================================================
 
-def sign_action(action, order_id):
+def make_callback_token(action, order_id):
+    """
+    Creates a short HMAC token used to authenticate
+    admin approve/reject callback actions.
+    """
+
     if not PAYMENT_SECRET:
         raise RuntimeError(
             "PAYMENT_SECRET is not configured."
@@ -135,20 +155,54 @@ def sign_action(action, order_id):
     return signature
 
 
-def verify_action(action, order_id, signature):
-    expected = sign_action(
+def verify_callback_token(
+    action,
+    order_id,
+    token,
+):
+    """
+    Verifies an HMAC callback token.
+    """
+
+    if not PAYMENT_SECRET:
+        return False
+
+    expected = make_callback_token(
         action,
         order_id,
     )
 
     return hmac.compare_digest(
         expected,
+        token,
+    )
+
+
+# ============================================================
+# BACKWARDS-COMPATIBLE CALLBACK FUNCTIONS
+# ============================================================
+
+def sign_action(action, order_id):
+    return make_callback_token(
+        action,
+        order_id,
+    )
+
+
+def verify_action(
+    action,
+    order_id,
+    signature,
+):
+    return verify_callback_token(
+        action,
+        order_id,
         signature,
     )
 
 
 # ============================================================
-# CREATE ORDER
+# CREATE PAYMENT ORDER
 # ============================================================
 
 def create_payment_order(
@@ -157,10 +211,14 @@ def create_payment_order(
     crypto,
 ):
     if quantity not in PRICE_TIERS:
-        raise ValueError("Invalid package.")
+        raise ValueError(
+            "Invalid package."
+        )
 
     if crypto not in PAYMENT_ADDRESSES:
-        raise ValueError("Invalid payment method.")
+        raise ValueError(
+            "Invalid payment method."
+        )
 
     price = PRICE_TIERS[quantity]
 
@@ -178,26 +236,46 @@ def create_payment_order(
     return order_id
 
 
-def payment_text(order_id):
+# ============================================================
+# PAYMENT MESSAGE
+# ============================================================
+
+def build_payment_message(order_id):
+    """
+    Builds the payment message used by telegram.py.
+    """
+
     order = get_order(order_id)
 
     if not order:
-        raise ValueError("Order not found.")
+        raise ValueError(
+            "Order not found."
+        )
 
-    crypto_name = CRYPTO_NAMES[
+    crypto_label = get_crypto_label(
         order["crypto"]
-    ]
+    )
 
     return (
         "💳 PAYMENT REQUIRED\n\n"
         f"Order: `{order['order_id']}`\n"
         f"Generation: `{format_quantity(order['quantity'])}` emails\n"
         f"Price: `{format_price(order['price_usd'])}`\n"
-        f"Network: `{crypto_name}`\n\n"
+        f"Network: `{crypto_label}`\n\n"
         "Send the payment to:\n\n"
         f"`{order['payment_address']}`\n\n"
         "⚠️ Send the payment on the exact network shown above.\n\n"
         "After sending the payment, tap:\n"
         "✅ *I've Paid*\n\n"
         "You will then be asked for the transaction hash."
+    )
+
+
+# ============================================================
+# BACKWARDS-COMPATIBLE PAYMENT MESSAGE
+# ============================================================
+
+def payment_text(order_id):
+    return build_payment_message(
+        order_id
     )
