@@ -183,22 +183,17 @@ def create_local_part():
 
     first = sanitize(
         random_case(
-            random.choice(
-                FIRST_NAMES
-            )
+            random.choice(FIRST_NAMES)
         )
     )
 
     last = sanitize(
         random_case(
-            random.choice(
-                LAST_NAMES
-            )
+            random.choice(LAST_NAMES)
         )
     )
 
     number = random_digits(1, 4)
-
     extra_letters = random_letters()
 
     separator = random.choice(
@@ -210,10 +205,7 @@ def create_local_part():
         ]
     )
 
-    pattern = random.randint(
-        1,
-        12,
-    )
+    pattern = random.randint(1, 12)
 
     if pattern == 1:
         local = (
@@ -233,7 +225,7 @@ def create_local_part():
     elif pattern == 3:
         local = (
             f"{first}"
-            f"{number}"
+            f"{extra_letters}"
             f"{separator}"
             f"{last}"
         )
@@ -242,24 +234,25 @@ def create_local_part():
         local = (
             f"{first}"
             f"{separator}"
-            f"{number}"
             f"{last}"
+            f"{extra_letters}"
         )
 
     elif pattern == 5:
         local = (
             f"{first}"
-            f"{extra_letters}"
             f"{separator}"
             f"{last}"
+            f"{number}"
         )
 
     elif pattern == 6:
         local = (
             f"{first}"
+            f"{extra_letters}"
             f"{separator}"
             f"{last}"
-            f"{extra_letters}"
+            f"{number}"
         )
 
     elif pattern == 7:
@@ -267,6 +260,7 @@ def create_local_part():
             f"{extra_letters}"
             f"{separator}"
             f"{first}"
+            f"{separator}"
             f"{last}"
             f"{number}"
         )
@@ -274,8 +268,10 @@ def create_local_part():
     elif pattern == 8:
         local = (
             f"{first}"
-            f"{number}"
+            f"{separator}"
+            f"{last}"
             f"{extra_letters}"
+            f"{number}"
         )
 
     elif pattern == 9:
@@ -289,19 +285,19 @@ def create_local_part():
 
     elif pattern == 10:
         local = (
+            f"{extra_letters}"
             f"{first}"
-            f"{number}"
             f"{separator}"
             f"{last}"
-            f"{extra_letters}"
+            f"{number}"
         )
 
     elif pattern == 11:
         local = (
-            f"{extra_letters}"
             f"{first}"
             f"{separator}"
             f"{last}"
+            f"{extra_letters}"
             f"{number}"
         )
 
@@ -310,12 +306,10 @@ def create_local_part():
             f"{first}"
             f"{separator}"
             f"{last}"
-            f"{random_digits(1, 4)}"
+            f"{number}"
         )
 
-    local = local.strip(
-        "._-"
-    )
+    local = local.strip("._-")
 
     local = re.sub(
         r"[._-]{2,}",
