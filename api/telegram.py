@@ -397,8 +397,7 @@ def handle_start(
 
         "🤖 <b>Email Generator</b>\n\n"
 
-        "Generate randomized, deliverable "
-        "email-shaped addresses.\n\n"
+        "Generate Fresh Email Leads.\n\n"
 
         "<b>How it works:</b>\n"
         "1. Select a package.\n"
