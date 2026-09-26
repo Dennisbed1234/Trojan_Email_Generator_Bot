@@ -1,1 +1,1 @@
-# No third-party dependencies required.
+psycopg[binary]>=3.2,<4
