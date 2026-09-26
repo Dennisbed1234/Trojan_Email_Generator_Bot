@@ -199,131 +199,131 @@ def create_local_part():
 
     number = random_digits(1, 4)
 
-extra_letters = random_letters()
+    extra_letters = random_letters()
 
-separator = random.choice(
-    [
-        ".",
-        "_",
-        "-",
-        "",
-    ]
-)
-
-pattern = random.randint(
-    1,
-    12,
-)
-
-if pattern == 1:
-    local = (
-        f"{first}"
-        f"{separator}"
-        f"{last}"
+    separator = random.choice(
+        [
+            ".",
+            "_",
+            "-",
+            "",
+        ]
     )
 
-elif pattern == 2:
-    local = (
-        f"{first}"
-        f"{separator}"
-        f"{last}"
-        f"{number}"
+    pattern = random.randint(
+        1,
+        12,
     )
 
-elif pattern == 3:
-    local = (
-        f"{first}"
-        f"{number}"
-        f"{separator}"
-        f"{last}"
+    if pattern == 1:
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+        )
+
+    elif pattern == 2:
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{number}"
+        )
+
+    elif pattern == 3:
+        local = (
+            f"{first}"
+            f"{number}"
+            f"{separator}"
+            f"{last}"
+        )
+
+    elif pattern == 4:
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{number}"
+            f"{last}"
+        )
+
+    elif pattern == 5:
+        local = (
+            f"{first}"
+            f"{extra_letters}"
+            f"{separator}"
+            f"{last}"
+        )
+
+    elif pattern == 6:
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{extra_letters}"
+        )
+
+    elif pattern == 7:
+        local = (
+            f"{extra_letters}"
+            f"{separator}"
+            f"{first}"
+            f"{last}"
+            f"{number}"
+        )
+
+    elif pattern == 8:
+        local = (
+            f"{first}"
+            f"{number}"
+            f"{extra_letters}"
+        )
+
+    elif pattern == 9:
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{number}"
+            f"{extra_letters}"
+        )
+
+    elif pattern == 10:
+        local = (
+            f"{first}"
+            f"{number}"
+            f"{separator}"
+            f"{last}"
+            f"{extra_letters}"
+        )
+
+    elif pattern == 11:
+        local = (
+            f"{extra_letters}"
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{number}"
+        )
+
+    else:
+        local = (
+            f"{first}"
+            f"{separator}"
+            f"{last}"
+            f"{random_digits(1, 4)}"
+        )
+
+    local = local.strip(
+        "._-"
     )
 
-elif pattern == 4:
-    local = (
-        f"{first}"
-        f"{separator}"
-        f"{number}"
-        f"{last}"
+    local = re.sub(
+        r"[._-]{2,}",
+        lambda match: match.group(0)[0],
+        local,
     )
 
-elif pattern == 5:
-    local = (
-        f"{first}"
-        f"{extra_letters}"
-        f"{separator}"
-        f"{last}"
-    )
-
-elif pattern == 6:
-    local = (
-        f"{first}"
-        f"{separator}"
-        f"{last}"
-        f"{extra_letters}"
-    )
-
-elif pattern == 7:
-    local = (
-        f"{extra_letters}"
-        f"{separator}"
-        f"{first}"
-        f"{last}"
-        f"{number}"
-    )
-
-elif pattern == 8:
-    local = (
-        f"{first}"
-        f"{number}"
-        f"{extra_letters}"
-    )
-
-elif pattern == 9:
-    local = (
-        f"{first}"
-        f"{separator}"
-        f"{last}"
-        f"{number}"
-        f"{extra_letters}"
-    )
-
-elif pattern == 10:
-    local = (
-        f"{first}"
-        f"{number}"
-        f"{separator}"
-        f"{last}"
-        f"{extra_letters}"
-    )
-
-elif pattern == 11:
-    local = (
-        f"{extra_letters}"
-        f"{first}"
-        f"{separator}"
-        f"{last}"
-        f"{number}"
-    )
-
-else:
-    local = (
-        f"{first}"
-        f"{separator}"
-        f"{last}"
-        f"{random_digits(1, 4)}"
-    )
-
-local = local.strip(
-    "._-"
-)
-
-local = re.sub(
-    r"[._-]{2,}",
-    lambda match: match.group(0)[0],
-    local,
-)
-
-return local
+    return local
 
 
 def create_email():
