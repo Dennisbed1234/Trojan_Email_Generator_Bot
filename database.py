@@ -1,5 +1,4 @@
 import os
-from datetime import datetime, timezone
 
 import psycopg
 
@@ -19,11 +18,17 @@ def get_connection():
     )
 
 
+# --------------------------------------------------
+# DATABASE INITIALIZATION
+# --------------------------------------------------
+
 def init_database():
     """
-    Creates the orders table if it doesn't exist.
+    Creates the email_orders table and required indexes
+    if they do not already exist.
 
     There is no credit/balance system.
+
     Each approved order represents exactly one generation.
     """
 
@@ -85,6 +90,10 @@ def init_database():
             conn.commit()
 
 
+# --------------------------------------------------
+# CREATE ORDER
+# --------------------------------------------------
+
 def create_order(
     order_id,
     telegram_user_id,
@@ -120,6 +129,10 @@ def create_order(
 
             conn.commit()
 
+
+# --------------------------------------------------
+# GET ORDER
+# --------------------------------------------------
 
 def get_order(order_id):
     with get_connection() as conn:
@@ -175,7 +188,17 @@ def get_order(order_id):
             return dict(zip(columns, row))
 
 
+# --------------------------------------------------
+# ATTACH TRANSACTION HASH
+# --------------------------------------------------
+
 def attach_tx_hash(order_id, tx_hash):
+    """
+    Attaches the user's transaction hash to a pending order.
+
+    PENDING -> PAYMENT_SUBMITTED
+    """
+
     with get_connection() as conn:
         with conn.cursor() as cur:
 
@@ -202,7 +225,17 @@ def attach_tx_hash(order_id, tx_hash):
             return updated == 1
 
 
+# --------------------------------------------------
+# APPROVE ORDER
+# --------------------------------------------------
+
 def approve_order(order_id):
+    """
+    Approves a submitted payment.
+
+    PAYMENT_SUBMITTED -> APPROVED
+    """
+
     with get_connection() as conn:
         with conn.cursor() as cur:
 
@@ -226,7 +259,17 @@ def approve_order(order_id):
             return updated == 1
 
 
+# --------------------------------------------------
+# REJECT ORDER
+# --------------------------------------------------
+
 def reject_order(order_id):
+    """
+    Rejects a submitted payment.
+
+    PAYMENT_SUBMITTED -> REJECTED
+    """
+
     with get_connection() as conn:
         with conn.cursor() as cur:
 
@@ -249,15 +292,181 @@ def reject_order(order_id):
             return updated == 1
 
 
+# --------------------------------------------------
+# LATEST PENDING ORDER
+# --------------------------------------------------
+
+def get_latest_pending_order(telegram_user_id):
+    """
+    Returns the user's most recent PENDING order.
+
+    This is used when the user submits a transaction hash.
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    order_id,
+                    telegram_user_id,
+                    quantity,
+                    price_usd,
+                    crypto,
+                    payment_address,
+                    tx_hash,
+                    status,
+                    generation_used,
+                    created_at,
+                    paid_at,
+                    approved_at,
+                    generated_at,
+                    rejected_at
+                FROM email_orders
+                WHERE telegram_user_id = %s
+                  AND status = 'PENDING'
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (telegram_user_id,),
+            )
+
+            row = cur.fetchone()
+
+            if not row:
+                return None
+
+            columns = [
+                "order_id",
+                "telegram_user_id",
+                "quantity",
+                "price_usd",
+                "crypto",
+                "payment_address",
+                "tx_hash",
+                "status",
+                "generation_used",
+                "created_at",
+                "paid_at",
+                "approved_at",
+                "generated_at",
+                "rejected_at",
+            ]
+
+            result = dict(zip(columns, row))
+
+            result["price_usd"] = float(result["price_usd"])
+
+            return result
+
+
+# --------------------------------------------------
+# LATEST PAYMENT ORDER
+# --------------------------------------------------
+
+def get_latest_payment_order(telegram_user_id):
+    """
+    Returns the user's most recent order.
+
+    This is used by /generate to determine the current
+    payment/generation status.
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    order_id,
+                    telegram_user_id,
+                    quantity,
+                    price_usd,
+                    crypto,
+                    payment_address,
+                    tx_hash,
+                    status,
+                    generation_used,
+                    created_at,
+                    paid_at,
+                    approved_at,
+                    generated_at,
+                    rejected_at
+                FROM email_orders
+                WHERE telegram_user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (telegram_user_id,),
+            )
+
+            row = cur.fetchone()
+
+            if not row:
+                return None
+
+            columns = [
+                "order_id",
+                "telegram_user_id",
+                "quantity",
+                "price_usd",
+                "crypto",
+                "payment_address",
+                "tx_hash",
+                "status",
+                "generation_used",
+                "created_at",
+                "paid_at",
+                "approved_at",
+                "generated_at",
+                "rejected_at",
+            ]
+
+            result = dict(zip(columns, row))
+
+            result["price_usd"] = float(result["price_usd"])
+
+            return result
+
+
+# --------------------------------------------------
+# LATEST USER ORDER
+# --------------------------------------------------
+
+def get_latest_user_order(telegram_user_id):
+    """
+    Compatibility helper.
+
+    Returns the user's most recent order.
+    """
+
+    return get_latest_payment_order(telegram_user_id)
+
+
+# --------------------------------------------------
+# CLAIM GENERATION
+# --------------------------------------------------
+
 def claim_generation(order_id, telegram_user_id):
     """
     Atomically consumes the ONE generation.
 
-    This is the important protection against double-clicks,
-    retries, or two simultaneous requests.
+    This protects against:
+    - double-clicks
+    - Telegram retries
+    - duplicate requests
+    - simultaneous generation requests
+
+    APPROVED -> GENERATING
 
     Returns the order if successfully claimed.
-    Returns None if it was already used or isn't approved.
+
+    Returns None if:
+    - the order doesn't exist
+    - the order belongs to another user
+    - the order isn't approved
+    - the generation was already used
     """
 
     with get_connection() as conn:
@@ -304,7 +513,15 @@ def claim_generation(order_id, telegram_user_id):
             }
 
 
+# --------------------------------------------------
+# GENERATION COMPLETE
+# --------------------------------------------------
+
 def mark_generation_complete(order_id):
+    """
+    GENERATING -> COMPLETED
+    """
+
     with get_connection() as conn:
         with conn.cursor() as cur:
 
@@ -321,13 +538,15 @@ def mark_generation_complete(order_id):
             conn.commit()
 
 
+# --------------------------------------------------
+# GENERATION FAILED
+# --------------------------------------------------
+
 def mark_generation_failed(order_id):
     """
-    If generation fails after the order was claimed,
-    put the order into GENERATION_FAILED.
+    GENERATING -> GENERATION_FAILED
 
-    This does NOT automatically give another generation.
-    Admin can inspect the failed order and decide what to do.
+    This does not automatically restore the generation.
     """
 
     with get_connection() as conn:
@@ -344,41 +563,3 @@ def mark_generation_failed(order_id):
             )
 
             conn.commit()
-
-
-def get_latest_user_order(telegram_user_id):
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-
-            cur.execute(
-                """
-                SELECT
-                    order_id,
-                    quantity,
-                    price_usd,
-                    crypto,
-                    status,
-                    generation_used,
-                    created_at
-                FROM email_orders
-                WHERE telegram_user_id = %s
-                ORDER BY created_at DESC
-                LIMIT 1
-                """,
-                (telegram_user_id,),
-            )
-
-            row = cur.fetchone()
-
-            if not row:
-                return None
-
-            return {
-                "order_id": row[0],
-                "quantity": row[1],
-                "price_usd": float(row[2]),
-                "crypto": row[3],
-                "status": row[4],
-                "generation_used": row[5],
-                "created_at": row[6],
-            }
