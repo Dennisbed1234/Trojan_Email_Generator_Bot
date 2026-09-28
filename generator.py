@@ -113,23 +113,12 @@ LAST_NAMES = [
 ]
 
 DOMAINS = [
-    "gmail.com",
-    "yahoomail.com",
+    "example.com",
 ]
 
 
 def random_case(text):
-    styles = [
-        str.lower,
-        lambda value: "".join(
-            char.lower()
-            if random.choice([True, False])
-            else char.upper()
-            for char in value
-        ),
-    ]
-
-    return random.choice(styles)(text)
+    return text.lower()
 
 
 def random_digits(
@@ -152,7 +141,7 @@ def sanitize(value):
         r"[^a-zA-Z0-9]",
         "",
         value,
-    )
+    ).lower()
 
 
 def random_letters(
@@ -160,8 +149,8 @@ def random_letters(
     max_length=4,
 ):
     """
-    Select extra characters from the existing
-    FIRST_NAMES and LAST_NAMES lists.
+    Select a lowercase fragment from one of the
+    existing FIRST_NAMES or LAST_NAMES.
     """
 
     length = random.randint(
@@ -173,7 +162,7 @@ def random_letters(
         FIRST_NAMES + LAST_NAMES
     )
 
-    source = sanitize(source).lower()
+    source = sanitize(source)
 
     if not source:
         return ""
@@ -205,7 +194,10 @@ def create_local_part():
         )
     )
 
-    number = random_digits(1, 4)
+    number = random_digits(
+        1,
+        4,
+    )
 
     extra_letters = random_letters()
 
@@ -213,8 +205,6 @@ def create_local_part():
         [
             ".",
             "_",
-            "-",
-            "",
         ]
     )
 
@@ -336,6 +326,8 @@ def create_local_part():
             f"{last}"
             f"{number}"
         )
+
+    local = local.lower()
 
     local = local.strip(
         "._-"
@@ -466,5 +458,3 @@ def generate_file(
             file.write("\n]\n")
 
     return path
-
-            
