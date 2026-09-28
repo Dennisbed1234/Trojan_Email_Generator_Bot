@@ -114,22 +114,17 @@ LAST_NAMES = [
 
 DOMAINS = [
     "gmail.com",
-    "gmail.com",
-    "gmail.com",
     "yahoomail.com",
-    "outlook.com",
 ]
 
 
 def random_case(text):
     styles = [
         str.lower,
-        str.upper,
-        str.capitalize,
         lambda value: "".join(
-            char.upper()
+            char.lower()
             if random.choice([True, False])
-            else char.lower()
+            else char.upper()
             for char in value
         ),
     ]
@@ -147,26 +142,7 @@ def random_digits(
     )
 
     return "".join(
-        random.choice(
-            "0123456789"
-        )
-        for _ in range(length)
-    )
-
-
-def random_letters(
-    min_length=1,
-    max_length=4,
-):
-    length = random.randint(
-        min_length,
-        max_length,
-    )
-
-    return "".join(
-        random.choice(
-            "abcdefghijklmnopqrstuvwxyz"
-        )
+        random.choice("0123456789")
         for _ in range(length)
     )
 
@@ -177,6 +153,42 @@ def sanitize(value):
         "",
         value,
     )
+
+
+def random_letters(
+    min_length=1,
+    max_length=4,
+):
+    """
+    Select extra characters from the existing
+    FIRST_NAMES and LAST_NAMES lists.
+    """
+
+    length = random.randint(
+        min_length,
+        max_length,
+    )
+
+    source = random.choice(
+        FIRST_NAMES + LAST_NAMES
+    )
+
+    source = sanitize(source).lower()
+
+    if not source:
+        return ""
+
+    if len(source) <= length:
+        return source
+
+    start = random.randint(
+        0,
+        len(source) - length,
+    )
+
+    return source[
+        start:start + length
+    ]
 
 
 def create_local_part():
@@ -194,6 +206,7 @@ def create_local_part():
     )
 
     number = random_digits(1, 4)
+
     extra_letters = random_letters()
 
     separator = random.choice(
@@ -205,9 +218,13 @@ def create_local_part():
         ]
     )
 
-    pattern = random.randint(1, 12)
+    pattern = random.randint(
+        1,
+        12,
+    )
 
     if pattern == 1:
+
         local = (
             f"{first}"
             f"{separator}"
@@ -215,6 +232,7 @@ def create_local_part():
         )
 
     elif pattern == 2:
+
         local = (
             f"{first}"
             f"{separator}"
@@ -223,6 +241,7 @@ def create_local_part():
         )
 
     elif pattern == 3:
+
         local = (
             f"{first}"
             f"{extra_letters}"
@@ -231,6 +250,7 @@ def create_local_part():
         )
 
     elif pattern == 4:
+
         local = (
             f"{first}"
             f"{separator}"
@@ -239,6 +259,7 @@ def create_local_part():
         )
 
     elif pattern == 5:
+
         local = (
             f"{first}"
             f"{separator}"
@@ -247,6 +268,7 @@ def create_local_part():
         )
 
     elif pattern == 6:
+
         local = (
             f"{first}"
             f"{extra_letters}"
@@ -256,6 +278,7 @@ def create_local_part():
         )
 
     elif pattern == 7:
+
         local = (
             f"{extra_letters}"
             f"{separator}"
@@ -266,6 +289,7 @@ def create_local_part():
         )
 
     elif pattern == 8:
+
         local = (
             f"{first}"
             f"{separator}"
@@ -275,6 +299,7 @@ def create_local_part():
         )
 
     elif pattern == 9:
+
         local = (
             f"{first}"
             f"{separator}"
@@ -284,6 +309,7 @@ def create_local_part():
         )
 
     elif pattern == 10:
+
         local = (
             f"{extra_letters}"
             f"{first}"
@@ -293,6 +319,7 @@ def create_local_part():
         )
 
     elif pattern == 11:
+
         local = (
             f"{first}"
             f"{separator}"
@@ -302,6 +329,7 @@ def create_local_part():
         )
 
     else:
+
         local = (
             f"{first}"
             f"{separator}"
@@ -309,7 +337,9 @@ def create_local_part():
             f"{number}"
         )
 
-    local = local.strip("._-")
+    local = local.strip(
+        "._-"
+    )
 
     local = re.sub(
         r"[._-]{2,}",
@@ -436,3 +466,5 @@ def generate_file(
             file.write("\n]\n")
 
     return path
+
+            
