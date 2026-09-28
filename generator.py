@@ -113,7 +113,7 @@ LAST_NAMES = [
 ]
 
 DOMAINS = [
-    "example.com",
+    "gmail.com",
 ]
 
 
@@ -122,8 +122,8 @@ def random_case(text):
 
 
 def random_digits(
-    min_length=2,
-    max_length=7,
+    min_length=1,
+    max_length=4,
 ):
     length = random.randint(
         min_length,
@@ -144,177 +144,52 @@ def sanitize(value):
     ).lower()
 
 
-def random_letters(
-    min_length=1,
-    max_length=4,
-):
-    """
-    Select a lowercase fragment from one of the
-    existing FIRST_NAMES or LAST_NAMES.
-    """
-
-    length = random.randint(
-        min_length,
-        max_length,
-    )
-
-    source = random.choice(
-        FIRST_NAMES + LAST_NAMES
-    )
-
-    source = sanitize(source)
-
-    if not source:
-        return ""
-
-    if len(source) <= length:
-        return source
-
-    start = random.randint(
-        0,
-        len(source) - length,
-    )
-
-    return source[
-        start:start + length
-    ]
-
-
 def create_local_part():
 
+    # Exactly ONE first name
     first = sanitize(
-        random_case(
-            random.choice(FIRST_NAMES)
-        )
+        random.choice(FIRST_NAMES)
     )
 
+    # Exactly ONE last name
     last = sanitize(
-        random_case(
-            random.choice(LAST_NAMES)
-        )
+        random.choice(LAST_NAMES)
     )
 
-    number = random_digits(
-        1,
-        4,
-    )
-
-    extra_letters = random_letters()
-
+    # Three possible formats:
+    #
+    # first.last
+    # first_last
+    # firstlast
+    #
     separator = random.choice(
         [
             ".",
             "_",
+            "",
         ]
     )
 
-    pattern = random.randint(
-        1,
-        12,
+    # Numbers are optional and can ONLY
+    # appear at the very end of the email.
+    include_number = random.choice(
+        [
+            True,
+            False,
+        ]
     )
 
-    if pattern == 1:
+    if include_number:
 
-        local = (
-            f"{first}"
-            f"{separator}"
-            f"{last}"
+        number = random_digits(
+            1,
+            4,
         )
 
-    elif pattern == 2:
-
         local = (
             f"{first}"
             f"{separator}"
             f"{last}"
-            f"{number}"
-        )
-
-    elif pattern == 3:
-
-        local = (
-            f"{first}"
-            f"{extra_letters}"
-            f"{separator}"
-            f"{last}"
-        )
-
-    elif pattern == 4:
-
-        local = (
-            f"{first}"
-            f"{separator}"
-            f"{last}"
-            f"{extra_letters}"
-        )
-
-    elif pattern == 5:
-
-        local = (
-            f"{first}"
-            f"{separator}"
-            f"{last}"
-            f"{number}"
-        )
-
-    elif pattern == 6:
-
-        local = (
-            f"{first}"
-            f"{extra_letters}"
-            f"{separator}"
-            f"{last}"
-            f"{number}"
-        )
-
-    elif pattern == 7:
-
-        local = (
-            f"{extra_letters}"
-            f"{separator}"
-            f"{first}"
-            f"{separator}"
-            f"{last}"
-            f"{number}"
-        )
-
-    elif pattern == 8:
-
-        local = (
-            f"{first}"
-            f"{separator}"
-            f"{last}"
-            f"{extra_letters}"
-            f"{number}"
-        )
-
-    elif pattern == 9:
-
-        local = (
-            f"{first}"
-            f"{separator}"
-            f"{last}"
-            f"{number}"
-            f"{extra_letters}"
-        )
-
-    elif pattern == 10:
-
-        local = (
-            f"{extra_letters}"
-            f"{first}"
-            f"{separator}"
-            f"{last}"
-            f"{number}"
-        )
-
-    elif pattern == 11:
-
-        local = (
-            f"{first}"
-            f"{separator}"
-            f"{last}"
-            f"{extra_letters}"
             f"{number}"
         )
 
@@ -324,25 +199,13 @@ def create_local_part():
             f"{first}"
             f"{separator}"
             f"{last}"
-            f"{number}"
         )
 
-    local = local.lower()
-
-    local = local.strip(
-        "._-"
-    )
-
-    local = re.sub(
-        r"[._-]{2,}",
-        lambda match: match.group(0)[0],
-        local,
-    )
-
-    return local
+    return local.lower()
 
 
 def create_email():
+
     return (
         f"{create_local_part()}"
         f"@{random.choice(DOMAINS)}"
@@ -458,3 +321,10 @@ def generate_file(
             file.write("\n]\n")
 
     return path
+
+    
+    
+
+    
+
+    
