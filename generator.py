@@ -293,10 +293,10 @@ def random_case(text):
 
 def random_date_suffix():
 
-    # Choose a year between 1952 and 2025.
+    # Choose a year between 1952 and 2022.
     year = random.randint(
         1952,
-        2025,
+        2022,
     )
 
     # Return either a 2-digit
@@ -531,10 +531,3 @@ def generate_file(
             file.write("\n]\n")
 
     return path
-
-    
-    
-
-    
-
-    
